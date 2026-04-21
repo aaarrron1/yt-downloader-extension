@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>YT Downloader</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      width: 380px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0f0f0f;
+      color: #e8e8e8;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #ff0000 0%, #cc0000 100%);
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .header svg { flex-shrink: 0; }
+    .header h1 { font-size: 16px; font-weight: 700; color: #fff; }
+    .header p  { font-size: 11px; color: rgba(255,255,255,.75); margin-top: 2px; }
+
+    .section {
+      padding: 14px 16px;
+      border-bottom: 1px solid #2a2a2a;
+    }
+    .section:last-child { border-bottom: none; }
+
+    label {
+      font-size: 12px;
+      color: #aaa;
+      display: block;
+      margin-bottom: 6px;
+    }
+    input, select {
+      width: 100%;
+      padding: 8px 10px;
+      border-radius: 6px;
+      border: 1px solid #333;
+      background: #1a1a1a;
+      color: #e8e8e8;
+      font-size: 13px;
+      outline: none;
+      transition: border-color .2s;
+    }
+    input:focus, select:focus { border-color: #ff4444; }
+    input::placeholder { color: #555; }
+
+    .row { display: flex; gap: 8px; }
+    .row > * { flex: 1; }
+
+    .status-bar {
+      padding: 10px 16px;
+      background: #1a1a1a;
+      border-bottom: 1px solid #2a2a2a;
+      font-size: 12px;
+      color: #888;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 38px;
+    }
+    .status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #555;
+      flex-shrink: 0;
+    }
+    .status-dot.ok  { background: #22c55e; }
+    .status-dot.err { background: #ef4444; }
+    .status-dot.run { background: #f59e0b; animation: pulse 1s infinite; }
+    @keyframes pulse {
+      0%,100% { opacity: 1; } 50% { opacity: .3; }
+    }
+
+    .progress-wrap {
+      height: 4px;
+      background: #2a2a2a;
+      border-radius: 2px;
+      overflow: hidden;
+      margin-top: 8px;
+    }
+    .progress-bar {
+      height: 100%;
+      width: 0;
+      background: linear-gradient(90deg,#ff4444,#ff9900);
+      border-radius: 2px;
+      transition: width .3s;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 7px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity .15s, transform .1s;
+    }
+    .btn:active { transform: scale(.97); }
+    .btn:disabled { opacity: .45; cursor: not-allowed; }
+    .btn-primary { background: #ff4444; color: #fff; }
+    .btn-primary:hover:not(:disabled) { background: #e03333; }
+    .btn-secondary { background: #24292e; color: #fff; border: 1px solid #444; }
+    .btn-secondary:hover:not(:disabled) { background: #333; }
+
+    .log-area {
+      background: #111;
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 11px;
+      color: #7dce82;
+      font-family: monospace;
+      max-height: 90px;
+      overflow-y: auto;
+      line-height: 1.6;
+      display: none;
+    }
+    .log-area.visible { display: block; }
+    .log-err { color: #f87171; }
+
+    .tag {
+      display: inline-block;
+      font-size: 10px;
+      padding: 2px 7px;
+      border-radius: 10px;
+      background: #2a2a2a;
+      color: #aaa;
+      margin-right: 4px;
+    }
+    .tag.green { background: #14532d; color: #4ade80; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+    <rect width="28" height="28" rx="6" fill="rgba(255,255,255,.15)"/>
+    <path d="M10 8.5l11 5.5-11 5.5V8.5z" fill="#fff"/>
+  </svg>
+  <div>
+    <h1>YT Downloader</h1>
+    <p>YouTube 视频下载 · 自动推送 GitHub</p>
+  </div>
+</div>
+
+<div class="status-bar">
+  <div class="status-dot" id="statusDot"></div>
+  <span id="statusText">检测当前页面中…</span>
+</div>
+
+<div class="section" id="videoSection" style="display:none">
+  <label>当前视频</label>
+  <div style="font-size:13px;color:#ddd;line-height:1.4;margin-bottom:8px" id="videoTitle">—</div>
+  <div>
+    <span class="tag" id="tagDuration">—</span>
+    <span class="tag" id="tagChannel">—</span>
+  </div>
+</div>
+
+<div class="section">
+  <label>视频 URL（可手动填入）</label>
+  <input type="text" id="videoUrl" placeholder="https://www.youtube.com/watch?v=..." />
+
+  <div class="row" style="margin-top:10px">
+    <div>
+      <label>画质</label>
+      <select id="quality">
+        <option value="1080">1080p</option>
+        <option value="720" selected>720p</option>
+        <option value="480">480p</option>
+        <option value="360">360p</option>
+        <option value="best">最高画质</option>
+      </select>
+    </div>
+    <div>
+      <label>格式</label>
+      <select id="format">
+        <option value="mp4" selected>MP4</option>
+        <option value="webm">WebM</option>
+        <option value="mp3">MP3（仅音频）</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <label>GitHub Token（Fine-grained / Classic）</label>
+  <input type="password" id="ghToken" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" autocomplete="off"/>
+
+  <div class="row" style="margin-top:10px">
+    <div>
+      <label>用户名</label>
+      <input type="text" id="ghOwner" placeholder="your-username"/>
+    </div>
+    <div>
+      <label>仓库名</label>
+      <input type="text" id="ghRepo" placeholder="my-videos"/>
+    </div>
+  </div>
+
+  <div style="margin-top:10px">
+    <label>仓库目录（可留空）</label>
+    <input type="text" id="ghPath" placeholder="videos/youtube"/>
+  </div>
+
+  <div style="margin-top:10px">
+    <label>Commit 消息模板</label>
+    <input type="text" id="ghCommit" placeholder="feat: add {title}"/>
+  </div>
+</div>
+
+<div class="section" id="progressSection" style="display:none">
+  <label id="progressLabel">正在处理…</label>
+  <div class="progress-wrap"><div class="progress-bar" id="progressBar"></div></div>
+</div>
+
+<div class="section">
+  <div class="log-area" id="logArea"></div>
+</div>
+
+<div class="section">
+  <div class="row">
+    <button class="btn btn-secondary" id="btnSave">保存设置</button>
+    <button class="btn btn-primary" id="btnRun">下载并推送</button>
+  </div>
+  <div style="margin-top:8px">
+    <button class="btn btn-secondary" id="btnDownloadOnly" style="background:#1a2a1a;border-color:#2d4d2d;color:#7dce82">仅下载（不推送）</button>
+  </div>
+</div>
+
+<script src="popup.js"></script>
+</body>
+</html>
